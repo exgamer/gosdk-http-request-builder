@@ -1,4 +1,4 @@
-package httprequestbuilder
+package builder
 
 import (
 	"bytes"

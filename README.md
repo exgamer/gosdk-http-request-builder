@@ -1,6 +1,6 @@
-# gosdk-http-requestbuilder
+# gosdk-http-builder
 
-Universal HTTP Request Builder for Go with generics.
+Universal HTTP Request builder for Go with generics.
 
 Designed for clean, readable, and debuggable HTTP calls in microservices and SDKs.
 
@@ -26,7 +26,7 @@ Designed for clean, readable, and debuggable HTTP calls in microservices and SDK
 ## Installation
 
 ```bash
-go get github.com/exgamer/gosdk-http-request-buildere/pkg/requestbuilder
+go get github.com/exgamer/gosdk-http-request-builder/pkg/builder
 ```
 
 ---
@@ -38,8 +38,8 @@ go get github.com/exgamer/gosdk-http-request-buildere/pkg/requestbuilder
 ```go
 ctx := context.Background()
 
-resp, err := requestbuilder.
-    NewGetHttpRequestBuilder[MyDTO](ctx, "https://api.example.com/v1/items").
+resp, err := builder.
+    NewGetHttpbuilder[MyDTO](ctx, "https://api.example.com/v1/items").
     SetQueryParams(map[string]string{
         "page": "1",
         "size": "20",
@@ -67,8 +67,8 @@ type CreateReq struct {
     Name string `json:"name"`
 }
 
-resp, err := requestbuilder.
-    NewPostHttpRequestBuilder[MyDTO](ctx, "https://api.example.com/v1/items").
+resp, err := builder.
+    NewPostHttpbuilder[MyDTO](ctx, "https://api.example.com/v1/items").
     SetJSONBody(CreateReq{Name: "test"}).
     SetRequestHeaders(map[string]string{
         "Authorization": "Bearer token",
@@ -81,10 +81,10 @@ resp, err := requestbuilder.
 ## Constructors
 
 ```go
-NewGetHttpRequestBuilder[E any](ctx context.Context, url string)
-NewPostHttpRequestBuilder[E any](ctx context.Context, url string)
-NewPutHttpRequestBuilder[E any](ctx context.Context, url string)
-NewPatchHttpRequestBuilder[E any](ctx context.Context, url string)
+NewGetHttpbuilder[E any](ctx context.Context, url string)
+NewPostHttpbuilder[E any](ctx context.Context, url string)
+NewPutHttpbuilder[E any](ctx context.Context, url string)
+NewPatchHttpbuilder[E any](ctx context.Context, url string)
 ```
 
 ---
@@ -192,8 +192,8 @@ Behavior:
 ### PUT
 
 ```go
-requestbuilder.
-    NewPutHttpRequestBuilder[MyDTO](ctx, url).
+builder.
+    NewPutHttpbuilder[MyDTO](ctx, url).
     SetJSONBody(data).
     GetResult()
 ```
@@ -203,8 +203,8 @@ requestbuilder.
 ### PATCH
 
 ```go
-requestbuilder.
-    NewPatchHttpRequestBuilder[MyDTO](ctx, url).
+builder.
+    NewPatchHttpbuilder[MyDTO](ctx, url).
     SetJSONBody(data).
     GetResult()
 ```
@@ -214,8 +214,8 @@ requestbuilder.
 ### POST XML
 
 ```go
-requestbuilder.
-    NewPostHttpRequestBuilder[MyDTO](ctx, url).
+builder.
+    NewPostHttpbuilder[MyDTO](ctx, url).
     SetXMLBody(xmlData).
     GetResult()
 ```

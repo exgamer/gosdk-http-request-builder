@@ -1,4 +1,4 @@
-package httprequestbuilder
+package builder
 
 // HttpResponse Модель описывающая ответ от rest запроса
 type HttpResponse[E interface{}] struct {

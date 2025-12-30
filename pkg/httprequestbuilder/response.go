@@ -1,4 +1,4 @@
-package httprequestbuilder
+package builder
 
 type Response[E interface{}] struct {
 	Success bool `json:"success"`
