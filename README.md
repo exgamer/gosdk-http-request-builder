@@ -26,7 +26,7 @@ Designed for clean, readable, and debuggable HTTP calls in microservices and SDK
 ## Installation
 
 ```bash
-go get github.com/exgamer/gosdk-http-core/pkg/requestbuilder
+go get github.com/exgamer/gosdk-http-request-buildere/pkg/requestbuilder
 ```
 
 ---

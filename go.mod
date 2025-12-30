@@ -1,4 +1,4 @@
-module github.com/exgamer/gosdk-http-core
+module github.com/exgamer/gosdk-http-request-builder
 
 go 1.23.0
 
