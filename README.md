@@ -11,7 +11,7 @@ Designed for clean, readable, and debuggable HTTP calls in microservices and SDK
 
 ## Features
 
-- ✅ HTTP methods: **GET / POST / PUT / PATCH**
+- ✅ HTTP methods: **GET / POST / PUT / PATCH / DELETE**
 - ✅ Typed responses via **Go generics**
 - ✅ JSON & XML request bodies
 - ✅ Headers & query parameters

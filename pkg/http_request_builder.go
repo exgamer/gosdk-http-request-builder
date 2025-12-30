@@ -40,6 +40,10 @@ func NewGetHttpRequestBuilder[E any](ctx context.Context, url string) *HttpReque
 	return newBuilder[E](ctx, url, http.MethodGet)
 }
 
+func NewDeleteHttpRequestBuilder[E any](ctx context.Context, url string) *HttpRequestBuilder[E] {
+	return newBuilder[E](ctx, url, http.MethodDelete)
+}
+
 func newBuilder[E any](ctx context.Context, rawURL, method string) *HttpRequestBuilder[E] {
 	base := http.DefaultTransport.(*http.Transport).Clone()
 
