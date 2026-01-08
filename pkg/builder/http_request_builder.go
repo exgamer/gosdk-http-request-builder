@@ -9,10 +9,10 @@ import (
 	"github.com/exgamer/gosdk-core/pkg/constants"
 	"github.com/exgamer/gosdk-core/pkg/debug"
 	"github.com/exgamer/gosdk-core/pkg/helpers"
-	"github.com/exgamer/gosdk-core/pkg/logger"
 	"github.com/gookit/goutil/netutil/httpheader"
 	"github.com/motemen/go-loghttp"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -122,7 +122,7 @@ func (b *HttpRequestBuilder[E]) SetThrowUnmarshalError(v bool) *HttpRequestBuild
 func (b *HttpRequestBuilder[E]) SetJSONBody(v any) *HttpRequestBuilder[E] {
 	data, err := json.Marshal(v)
 	if err != nil {
-		logger.LogError(err)
+		log.Println(err)
 
 		return b
 	}
@@ -138,7 +138,7 @@ func (b *HttpRequestBuilder[E]) SetJSONBody(v any) *HttpRequestBuilder[E] {
 func (b *HttpRequestBuilder[E]) SetXMLBody(v any) *HttpRequestBuilder[E] {
 	data, err := xml.Marshal(v)
 	if err != nil {
-		logger.LogError(err)
+		log.Println(err)
 
 		return b
 	}
