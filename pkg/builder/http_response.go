@@ -8,6 +8,6 @@ type HttpResponse[E interface{}] struct {
 	Url        string
 	Method     string
 	Headers    map[string]string
-	Result     Response[E]
+	Result     E
 	ErrorsMap  map[string]interface{}
 }

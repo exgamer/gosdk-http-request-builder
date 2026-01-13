@@ -53,6 +53,14 @@ if err != nil {
     panic(err)
 }
 
+if resp.IsServerError() {
+    //... обработка 500
+}
+
+if resp.IsClientError() {
+//... обработка 400
+}
+
 fmt.Println(resp.StatusCode)
 fmt.Println(string(resp.Body))
 fmt.Printf("%+v\n", resp.Result)
@@ -74,6 +82,18 @@ resp, err := builder.
         "Authorization": "Bearer token",
     }).
     GetResult()
+
+if err != nil {
+    panic(err)
+}
+
+if resp.IsServerError() {
+//... обработка 500
+}
+
+if resp.IsClientError() {
+//... обработка 400
+}
 ```
 
 ---

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
-	"fmt"
 	"github.com/exgamer/gosdk-core/pkg/constants"
 	"github.com/exgamer/gosdk-core/pkg/debug"
 	"github.com/exgamer/gosdk-core/pkg/helpers"
@@ -220,7 +219,7 @@ func (b *HttpRequestBuilder[E]) GetResult() (*HttpResponse[E], error) {
 		return nil, err
 	}
 
-	var r Response[E]
+	var r E
 
 	if err := json.Unmarshal(b.response.Body, &r); err != nil && b.throwUnmarshalError {
 		return nil, err
@@ -229,11 +228,19 @@ func (b *HttpRequestBuilder[E]) GetResult() (*HttpResponse[E], error) {
 	b.response.Result = r
 	b.setDebugInfo()
 
-	if b.response.StatusCode >= 500 {
-		return nil, fmt.Errorf("http %s %s -> %d", b.method, b.response.Url, b.response.StatusCode)
-	}
-
 	return b.response, nil
+}
+
+func (r *HttpResponse[E]) IsServerError() bool {
+	return r.StatusCode >= 500
+}
+
+func (r *HttpResponse[E]) IsClientError() bool {
+	return r.StatusCode >= 400 && r.StatusCode < 500
+}
+
+func (r *HttpResponse[E]) IsSuccess() bool {
+	return r.StatusCode >= 200 && r.StatusCode < 300
 }
 
 //
