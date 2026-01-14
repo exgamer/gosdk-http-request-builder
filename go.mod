@@ -1,9 +1,9 @@
 module github.com/exgamer/gosdk-http-request-builder
 
-go 1.23.0
+go 1.25.5
 
 require (
-	github.com/exgamer/gosdk-core v1.0.8
+	github.com/exgamer/gosdk-core v1.0.10
 	github.com/gookit/goutil v0.6.15
 	github.com/motemen/go-loghttp v0.0.0-20231107055348-29ae44b293f4
 )
