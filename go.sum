@@ -1,5 +1,5 @@
-github.com/exgamer/gosdk-core v1.0.28 h1:XY/OQOWcw1F2IoPo3VzMaqcZqN5monWoocAnNqsu5dU=
-github.com/exgamer/gosdk-core v1.0.28/go.mod h1:BkDESXj9stNzQdTGy1b50cOHvAbWxwIxH6pjfaxAZLQ=
+github.com/exgamer/gosdk-core v1.0.29 h1:LvjcTs4+AFsrA8BOOngFmgas86MMyVxhuxmvSuhWPv8=
+github.com/exgamer/gosdk-core v1.0.29/go.mod h1:PehNVPtKS1egbRY6h3/tfD/uFjaRcsybnZSJ5dx/lNY=
 github.com/gookit/goutil v0.7.4 h1:OWgUngToNz+bPlX5aP+EMG31DraEU63uvKMwwT3vseM=
 github.com/gookit/goutil v0.7.4/go.mod h1:vJS9HXctYTCLtCsZot5L5xF+O1oR17cDYO9R0HxBmnU=
 github.com/motemen/go-loghttp v0.0.0-20231107055348-29ae44b293f4 h1:WLWwzjax2/L5NAQul9bdk1EAP0+YGnAzJBJ/LzL8Dgs=
