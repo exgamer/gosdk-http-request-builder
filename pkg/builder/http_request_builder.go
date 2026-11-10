@@ -76,7 +76,6 @@ type HttpRequestBuilder[E any] struct {
 	rawBodyBytes             []byte
 	timeout                  time.Duration
 	transport                loghttp.Transport
-	request                  *http.Request
 	response                 *HttpResponse[E]
 	responseDataPresentation string
 	ctx                      context.Context
@@ -246,7 +245,8 @@ func (b *HttpRequestBuilder[E]) do() error {
 		return err
 	}
 
-	defer resp.Body.Close()
+	// тело читается целиком ниже; ошибка закрытия на результат вызова не влияет
+	defer func() { _ = resp.Body.Close() }()
 
 	b.response.Status = resp.Status
 	b.response.StatusCode = resp.StatusCode
