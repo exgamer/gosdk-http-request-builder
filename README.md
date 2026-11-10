@@ -148,6 +148,20 @@ Useful when API may return non‑JSON responses (HTML, plain text, etc).
 
 ---
 
+### After-call hook
+
+```go
+builder.SetOnComplete(func(ctx context.Context, call builder.CallResult) {
+    // call.Method, call.URL (with query — mask secrets yourself), call.StatusCode (0 — no response),
+    // call.Duration, call.Err, call.RequestBody, call.ResponseBody
+})
+```
+
+Called once after every `Do()` / `GetResult()`, including transport errors. A JSON unmarshal error of `GetResult()` is
+not passed to the hook.
+
+---
+
 ## Request Body
 
 ### JSON
@@ -197,6 +211,9 @@ Executes request and parses response into `Response[E]`.
 ```go
 resp, err := builder.GetResult()
 ```
+
+`resp.Headers` — response headers, the first value per name (canonical key: `resp.Headers["Retry-After"]`);
+`resp.Duration` (and `builder.Duration()`) — call duration from the start of `Do()` to the end of reading the body.
 
 Behavior:
 - Executes request

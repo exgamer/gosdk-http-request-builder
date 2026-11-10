@@ -81,8 +81,22 @@ type HttpRequestBuilder[E any] struct {
 	responseDataPresentation string
 	ctx                      context.Context
 	execTime                 time.Duration
+	onComplete               func(ctx context.Context, call CallResult)
 
 	throwUnmarshalError bool
+}
+
+// CallResult Итог одного вызова для хука SetOnComplete.
+// StatusCode 0 — ответа нет (сеть, таймаут, отмена, ошибка сборки запроса); Err — ошибка вызова или nil.
+// URL — итоговый адрес с query-параметрами: маскировать секреты в нём — забота хука
+type CallResult struct {
+	Method       string
+	URL          string
+	StatusCode   int
+	Duration     time.Duration
+	Err          error
+	RequestBody  []byte
+	ResponseBody []byte
 }
 
 //
@@ -103,6 +117,14 @@ func (b *HttpRequestBuilder[E]) SetQueryParams(q map[string]string) *HttpRequest
 
 func (b *HttpRequestBuilder[E]) SetRequestTimeout(t time.Duration) *HttpRequestBuilder[E] {
 	b.timeout = t
+	return b
+}
+
+// SetOnComplete Хук после каждого вызова Do (и GetResult): журнал внешних вызовов, метрики. Вызывается один раз,
+// в том числе при транспортной ошибке; ошибка разбора тела в GetResult в хук не попадает
+func (b *HttpRequestBuilder[E]) SetOnComplete(fn func(ctx context.Context, call CallResult)) *HttpRequestBuilder[E] {
+	b.onComplete = fn
+
 	return b
 }
 
@@ -161,12 +183,39 @@ func (b *HttpRequestBuilder[E]) Do() error {
 	err := b.do()
 	b.execTime = time.Since(start)
 
+	if b.response != nil {
+		b.response.Duration = b.execTime
+	}
+
+	b.notifyComplete(err)
+
 	if err != nil {
 
 		return err
 	}
 
 	return nil
+}
+
+// Duration Длительность последнего вызова Do
+func (b *HttpRequestBuilder[E]) Duration() time.Duration {
+	return b.execTime
+}
+
+func (b *HttpRequestBuilder[E]) notifyComplete(err error) {
+	if b.onComplete == nil {
+		return
+	}
+
+	call := CallResult{Method: b.method, URL: b.url, Duration: b.execTime, Err: err, RequestBody: b.rawBodyBytes}
+
+	if b.response != nil {
+		call.URL = b.response.Url
+		call.StatusCode = b.response.StatusCode
+		call.ResponseBody = b.response.Body
+	}
+
+	b.onComplete(b.ctx, call)
 }
 
 func (b *HttpRequestBuilder[E]) do() error {
@@ -201,6 +250,7 @@ func (b *HttpRequestBuilder[E]) do() error {
 
 	b.response.Status = resp.Status
 	b.response.StatusCode = resp.StatusCode
+	b.response.Headers = firstHeaderValues(resp.Header)
 
 	body, _ := io.ReadAll(resp.Body)
 	b.response.Body = body
@@ -276,6 +326,19 @@ func (b *HttpRequestBuilder[E]) setDebugInfo() {
 // Utils
 // ----------------------------------------------------
 //
+
+// firstHeaderValues Заголовки ответа по первому значению на имя
+func firstHeaderValues(h http.Header) map[string]string {
+	out := make(map[string]string, len(h))
+
+	for k, v := range h {
+		if len(v) > 0 {
+			out[k] = v[0]
+		}
+	}
+
+	return out
+}
 
 func (b *HttpRequestBuilder[E]) ensureHeaders() {
 	if b.headers == nil {
