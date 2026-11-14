@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
+	"fmt"
 	"github.com/exgamer/gosdk-core/pkg/constants"
 	"github.com/exgamer/gosdk-core/pkg/debug"
 	"github.com/exgamer/gosdk-core/pkg/helpers"
@@ -12,10 +14,15 @@ import (
 	"github.com/motemen/go-loghttp"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
+
+// ErrResponseTooLarge Тело ответа больше предела SetMaxResponseBytes
+var ErrResponseTooLarge = errors.New("response body exceeds the limit")
 
 //
 // ----------------------------------------------------
@@ -81,6 +88,8 @@ type HttpRequestBuilder[E any] struct {
 	ctx                      context.Context
 	execTime                 time.Duration
 	onComplete               func(ctx context.Context, call CallResult)
+	noRedirects              bool
+	maxResponseBytes         int64
 
 	throwUnmarshalError bool
 }
@@ -127,6 +136,21 @@ func (b *HttpRequestBuilder[E]) SetOnComplete(fn func(ctx context.Context, call 
 	return b
 }
 
+// SetNoRedirects Не следовать редиректам: ответ 3xx возвращается как есть (статус, заголовок Location)
+func (b *HttpRequestBuilder[E]) SetNoRedirects() *HttpRequestBuilder[E] {
+	b.noRedirects = true
+
+	return b
+}
+
+// SetMaxResponseBytes Предел тела ответа в байтах: тело больше предела — ошибка ErrResponseTooLarge,
+// в HttpResponse.Body — первые n байт. 0 (по умолчанию) — без предела
+func (b *HttpRequestBuilder[E]) SetMaxResponseBytes(n int64) *HttpRequestBuilder[E] {
+	b.maxResponseBytes = n
+
+	return b
+}
+
 func (b *HttpRequestBuilder[E]) SetThrowUnmarshalError(v bool) *HttpRequestBuilder[E] {
 	b.throwUnmarshalError = v
 
@@ -167,6 +191,18 @@ func (b *HttpRequestBuilder[E]) SetXMLBody(v any) *HttpRequestBuilder[E] {
 	b.body = bytes.NewReader(data)
 	b.ensureHeaders()
 	b.headers[httpheader.ContentType] = "application/xml"
+
+	return b
+}
+
+// SetFormBody Тело application/x-www-form-urlencoded (OAuth token endpoint и подобные)
+func (b *HttpRequestBuilder[E]) SetFormBody(v url.Values) *HttpRequestBuilder[E] {
+	data := []byte(v.Encode())
+
+	b.rawBodyBytes = data
+	b.body = bytes.NewReader(data)
+	b.ensureHeaders()
+	b.headers[httpheader.ContentType] = "application/x-www-form-urlencoded"
 
 	return b
 }
@@ -225,6 +261,10 @@ func (b *HttpRequestBuilder[E]) do() error {
 		Transport: &b.transport,
 	}
 
+	if b.noRedirects {
+		client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	}
+
 	finalURL, err := b.buildURL()
 	if err != nil {
 		return err
@@ -252,8 +292,39 @@ func (b *HttpRequestBuilder[E]) do() error {
 	b.response.StatusCode = resp.StatusCode
 	b.response.Headers = firstHeaderValues(resp.Header)
 
-	body, _ := io.ReadAll(resp.Body)
+	return b.readBody(resp.Body)
+}
+
+// readBody Тело ответа в b.response.Body; ошибка чтения (обрыв соединения, таймаут) — ошибка вызова
+func (b *HttpRequestBuilder[E]) readBody(r io.Reader) error {
+	if b.maxResponseBytes <= 0 {
+		body, err := io.ReadAll(r)
+		b.response.Body = body
+
+		if err != nil {
+			return fmt.Errorf("read response body: %w", err)
+		}
+
+		return nil
+	}
+
+	limit := b.maxResponseBytes
+	if limit < math.MaxInt64 {
+		limit++ // one byte over the limit tells «too large» from «exactly the limit»
+	}
+
+	body, err := io.ReadAll(io.LimitReader(r, limit))
+	if int64(len(body)) > b.maxResponseBytes {
+		b.response.Body = body[:b.maxResponseBytes]
+
+		return fmt.Errorf("%w: more than %d bytes", ErrResponseTooLarge, b.maxResponseBytes)
+	}
+
 	b.response.Body = body
+
+	if err != nil {
+		return fmt.Errorf("read response body: %w", err)
+	}
 
 	return nil
 }
@@ -309,9 +380,9 @@ func (b *HttpRequestBuilder[E]) setDebugInfo() {
 		Time:        helpers.GetDurationAsString(b.execTime),
 		Status:      b.response.StatusCode,
 		Method:      b.method,
-		Url:         b.response.Url,
-		Headers:     b.headers,
-		QueryParams: b.queryParams,
+		Url:         maskURL(b.response.Url),
+		Headers:     maskHeaders(b.headers),
+		QueryParams: maskMap(b.queryParams, sensitiveQuery),
 		Body:        string(b.rawBodyBytes),
 		Duration:    b.execTime,
 	}
@@ -335,6 +406,99 @@ func firstHeaderValues(h http.Header) map[string]string {
 		if len(v) > 0 {
 			out[k] = v[0]
 		}
+	}
+
+	return out
+}
+
+// sensitiveHeader Заголовок с секретом: в отладочную информацию — значение «***».
+// Ключ идемпотентности (Idempotency-Key, X-Idempotency-Key) — не секрет
+func sensitiveHeader(name string) bool {
+	n := strings.ToLower(name)
+
+	switch n {
+	case "authorization", "proxy-authorization", "cookie", "set-cookie", "x-api-key", "x-auth-token":
+		return true
+	case "idempotency-key", "x-idempotency-key":
+		return false
+	}
+
+	return secretName(n)
+}
+
+// secretName Имя (в нижнем регистре) похоже на секрет: оканчивается на -token/_token/-secret/_secret/-key/_key
+// или содержит password/apikey
+func secretName(n string) bool {
+	if strings.Contains(n, "password") || strings.Contains(n, "apikey") {
+		return true
+	}
+
+	for _, suffix := range []string{"-token", "_token", "-secret", "_secret", "-key", "_key"} {
+		if strings.HasSuffix(n, suffix) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// sensitiveQuery Query-параметр с секретом: в отладочную информацию — значение «***»
+func sensitiveQuery(name string) bool {
+	n := strings.ToLower(name)
+
+	switch n {
+	case "password", "token", "access_token", "refresh_token", "id_token", "client_secret", "code", "state":
+		return true
+	}
+
+	return strings.HasSuffix(n, "_token") || strings.HasSuffix(n, "_secret") || strings.HasSuffix(n, "_key")
+}
+
+// maskHeaders Копия заголовков с замаскированными секретами; исходные заголовки запроса не меняются
+func maskHeaders(h map[string]string) map[string]string {
+	return maskMap(h, sensitiveHeader)
+}
+
+// maskURL Адрес с замаскированными секретными query-параметрами; адрес без них или неразборный — как есть
+func maskURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.RawQuery == "" {
+		return raw
+	}
+
+	q := u.Query()
+	changed := false
+
+	for k := range q {
+		if sensitiveQuery(k) {
+			q[k] = []string{"***"}
+			changed = true
+		}
+	}
+
+	if !changed {
+		return raw
+	}
+
+	u.RawQuery = q.Encode()
+
+	return u.String()
+}
+
+// maskMap Копия map, где значения ключей с секретом (secret(k)) заменены на «***»
+func maskMap(m map[string]string, secret func(string) bool) map[string]string {
+	if m == nil {
+		return nil
+	}
+
+	out := make(map[string]string, len(m))
+
+	for k, v := range m {
+		if secret(k) {
+			v = "***"
+		}
+
+		out[k] = v
 	}
 
 	return out

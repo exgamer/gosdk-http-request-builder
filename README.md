@@ -160,6 +160,30 @@ builder.SetOnComplete(func(ctx context.Context, call builder.CallResult) {
 Called once after every `Do()` / `GetResult()`, including transport errors. A JSON unmarshal error of `GetResult()` is
 not passed to the hook.
 
+### Redirects
+
+```go
+builder.SetNoRedirects() // a 3xx response is returned as is (status, Location); by default redirects are followed
+```
+
+### Response size limit
+
+```go
+builder.SetMaxResponseBytes(1 << 20) // body over 1 MiB — error builder.ErrResponseTooLarge, Body holds the first 1 MiB
+```
+
+By default there is no limit. A read error of the response body (connection cut, timeout) is returned by `Do()` /
+`GetResult()` since v1.3.0.
+
+### Debug info
+
+With a debug collector in the context, secrets of the request are recorded as `***`. Headers: `Authorization`,
+`Proxy-Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`, `X-Auth-Token`, names ending in `-token`, `_token`,
+`-secret`, `_secret`, `-key`, `_key` and names containing `password` or `apikey` (an idempotency key —
+`Idempotency-Key`, `X-Idempotency-Key` — is kept). Query (`QueryParams` and the URL): `password`, `token`,
+`access_token`, `refresh_token`, `id_token`, `client_secret`, `code`, `state` and names ending in `_token`, `_secret`,
+`_key`. The request itself is sent with the real values.
+
 ---
 
 ## Request Body
@@ -188,6 +212,20 @@ Automatically sets:
 
 ```
 Content-Type: application/xml
+```
+
+---
+
+### Form (application/x-www-form-urlencoded)
+
+```go
+builder.SetFormBody(url.Values{"grant_type": {"client_credentials"}, "scope": {"read"}})
+```
+
+Automatically sets:
+
+```
+Content-Type: application/x-www-form-urlencoded
 ```
 
 ---
